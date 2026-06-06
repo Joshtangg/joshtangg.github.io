@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Parking Slot Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #181c27;
+    --surface2: #1f2436;
+    --border: rgba(255,255,255,0.07);
+    --border-hover: rgba(255,255,255,0.14);
+    --text: #e8eaf0;
+    --muted: #6b7280;
+    --accent: #22c98e;
+    --accent-dim: rgba(34,201,142,0.12);
+    --accent-border: rgba(34,201,142,0.35);
+    --danger: #e85555;
+    --danger-bg: rgba(232,85,85,0.1);
+    --danger-border: rgba(232,85,85,0.3);
+    --amber: #f59e0b;
+    --mono: 'DM Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    padding: 2rem 1.5rem;
+  }
+
+  /* --- Header --- */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 2rem;
+  }
+
+  .header-icon {
+    width: 40px; height: 40px;
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  .header-icon svg { width: 20px; height: 20px; stroke: var(--accent); }
+
+  .header h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--text);
+  }
+
+  .header p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 1px;
+  }
+
+  /* --- Dashboard Stats --- */
+  .dashboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+    margin-bottom: 1.25rem;
+  }
+
+  .stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent);
+    opacity: 0.5;
+    border-radius: 12px 12px 0 0;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: -0.02em;
+  }
+
+  #stat-rev { color: var(--accent); }
+
+  /* --- Alert --- */
+  .alert-full {
+    display: none;
+    background: var(--danger-bg);
+    border: 1px solid var(--danger-border);
+    border-radius: 10px;
+    padding: .7rem 1.1rem;
+    margin-bottom: 1.25rem;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--danger);
+    text-align: center;
+    letter-spacing: 0.01em;
+  }
+  .alert-full.show { display: block; }
+  .alert-full::before { content: '⚠ '; }
+
+  /* --- Slots Grid --- */
+  .slots-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+
+  .slot-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    transition: border-color .25s, background .25s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .slot-card.occupied {
+    border-color: var(--accent-border);
+    background: var(--surface2);
+  }
+
+  .slot-card.occupied::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top right, rgba(34,201,142,0.06), transparent 70%);
+    pointer-events: none;
+  }
+
+  .slot-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: .75rem;
+  }
+
+  .slot-num {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .slot-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    opacity: .4;
+    transition: background .25s, opacity .25s;
+  }
+
+  .slot-card.occupied .slot-dot {
+    background: var(--accent);
+    opacity: 1;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .stopwatch {
+    font-family: var(--mono);
+    font-size: 26px;
+    font-weight: 500;
+    color: var(--text);
+    letter-spacing: .06em;
+    margin-bottom: .35rem;
+    transition: color .25s;
+  }
+
+  .slot-card.occupied .stopwatch { color: var(--accent); }
+
+  .accrued {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: .9rem;
+    font-family: var(--mono);
+  }
+
+  .accrued span {
+    color: var(--amber);
+    font-weight: 500;
+  }
+
+  .btn-occupy {
+    width: 100%;
+    padding: 7px 12px;
+    font-family: var(--sans);
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 8px;
+    border: 1px solid var(--border-hover);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    margin-bottom: 6px;
+    transition: background .15s, border-color .15s, color .15s, transform .1s;
+    letter-spacing: .01em;
+  }
+
+  .btn-occupy:hover:not(:disabled) {
+    background: rgba(255,255,255,0.05);
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .btn-occupy:active:not(:disabled) { transform: scale(0.98); }
+
+  .btn-occupy.occupied-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #0a1a12;
+  }
+
+  .btn-occupy.occupied-btn:hover { background: #1db87e; border-color: #1db87e; }
+
+  .btn-occupy:disabled {
+    opacity: .3;
+    cursor: not-allowed;
+  }
+
+  .btn-add {
+    width: 100%;
+    padding: 6px 12px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 400;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    transition: background .15s, color .15s, border-color .15s;
+    letter-spacing: .01em;
+  }
+
+  .btn-add:hover:not(:disabled) {
+    background: var(--accent-dim);
+    border-color: var(--accent-border);
+    color: var(--accent);
+  }
+
+  .btn-add:disabled { opacity: .25; cursor: not-allowed; }
+
+  /* --- Footer --- */
+  .footer {
+    text-align: center;
+    margin-top: 2rem;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.04em;
+    opacity: .6;
+  }
+
+  /* --- Scrollbar --- */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border-hover); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-icon">
+    <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <path d="M9 17V7h4a3 3 0 0 1 0 6H9"/>
+    </svg>
+  </div>
+  <div>
+    <h1>Parking Slot Tracker</h1>
+    <p>Real-time bay management &amp; revenue tracking</p>
+  </div>
+</div>
+
+<div class="dashboard">
+  <div class="stat">
+    <div class="stat-label">Available Slots</div>
+    <div class="stat-value" id="stat-avail">20 / 10</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Cars Parked Today</div>
+    <div class="stat-value" id="stat-total">0</div>
+  </div>
+  <div class="stat">
+    <div class="stat-label">Total Revenue</div>
+    <div class="stat-value" id="stat-rev">₱0</div>
+  </div>
+</div>
+
+<div class="alert-full" id="alert-full">Parking lot full — no available slots remaining</div>
+
+<div class="slots-grid" id="slots-grid"></div>
+
+<div class="footer">₱20 charged per hour &nbsp;·&nbsp; Timers run independently &nbsp;·&nbsp; Revenue settles on exit</div>
+
+<script>
+  const TOTAL = 20;
+  let availableSlots = TOTAL;
+  let totalCarsParkedToday = 0;
+  let totalRevenue = 0;
+
+  const slots = Array.from({ length: TOTAL }, (_, i) => ({
+    id: i + 1,
+    isOccupied: false,
+    totalSeconds: 0,
+    hourlyAccruedAmount: 0,
+    intervalRef: null
+  }));
+
+  const pad = n => String(n).padStart(2, '0');
+
+  function formatTime(s) {
+    return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
+  }
+
+  function updateDashboard() {
+    document.getElementById('stat-avail').textContent = `${availableSlots} / ${TOTAL}`;
+    document.getElementById('stat-total').textContent = totalCarsParkedToday;
+    document.getElementById('stat-rev').textContent = `₱${totalRevenue}`;
+    const full = availableSlots === 0;
+    document.getElementById('alert-full').classList.toggle('show', full);
+    slots.forEach(slot => {
+      if (!slot.isOccupied) {
+        document.getElementById(`btn-occupy-${slot.id}`).disabled = full;
+      }
+    });
+  }
+
+  function occupySlot(slot) {
+    slot.isOccupied = true;
+    slot.totalSeconds = 0;
+    slot.hourlyAccruedAmount = 0;
+    availableSlots--;
+    totalCarsParkedToday++;
+
+    const card = document.getElementById(`card-${slot.id}`);
+    const btnOccupy = document.getElementById(`btn-occupy-${slot.id}`);
+    const btnAdd = document.getElementById(`btn-add-${slot.id}`);
+    const sw = document.getElementById(`sw-${slot.id}`);
+    const accrued = document.getElementById(`accrued-${slot.id}`);
+
+    card.classList.add('occupied');
+    btnOccupy.textContent = 'Vacate & Collect';
+    btnOccupy.classList.add('occupied-btn');
+    btnAdd.disabled = false;
+    sw.textContent = '00:00:00';
+    accrued.innerHTML = 'Accrued: <span>₱0</span>';
+
+    slot.intervalRef = setInterval(() => {
+      slot.totalSeconds++;
+      const prevHours = Math.floor((slot.totalSeconds - 1) / 3600);
+      const currHours = Math.floor(slot.totalSeconds / 3600);
+      if (currHours > prevHours && currHours > 0) {
+        slot.hourlyAccruedAmount += 20;
+        accrued.innerHTML = `Accrued: <span>₱${slot.hourlyAccruedAmount}</span>`;
+      }
+      sw.textContent = formatTime(slot.totalSeconds);
+    }, 1000);
+
+    updateDashboard();
+  }
+
+  function vacateSlot(slot) {
+    slot.isOccupied = false;
+    clearInterval(slot.intervalRef);
+    slot.intervalRef = null;
+    totalRevenue += slot.hourlyAccruedAmount;
+    availableSlots++;
+
+    const card = document.getElementById(`card-${slot.id}`);
+    const btnOccupy = document.getElementById(`btn-occupy-${slot.id}`);
+    const btnAdd = document.getElementById(`btn-add-${slot.id}`);
+    const sw = document.getElementById(`sw-${slot.id}`);
+    const accrued = document.getElementById(`accrued-${slot.id}`);
+
+    card.classList.remove('occupied');
+    btnOccupy.textContent = 'Occupy Slot';
+    btnOccupy.classList.remove('occupied-btn');
+    btnAdd.disabled = true;
+    sw.textContent = '00:00:00';
+    accrued.innerHTML = 'Accrued: <span>₱0</span>';
+    slot.totalSeconds = 0;
+    slot.hourlyAccruedAmount = 0;
+
+    updateDashboard();
+  }
+
+  function addThirtyMins(slot) {
+    if (!slot.isOccupied) return;
+    slot.totalSeconds += 1800;
+    const newHours = Math.floor(slot.totalSeconds / 3600);
+    const newAccrued = newHours * 20;
+    if (newAccrued > slot.hourlyAccruedAmount) {
+      slot.hourlyAccruedAmount = newAccrued;
+      document.getElementById(`accrued-${slot.id}`).innerHTML = `Accrued: <span>₱${slot.hourlyAccruedAmount}</span>`;
+    }
+    document.getElementById(`sw-${slot.id}`).textContent = formatTime(slot.totalSeconds);
+  }
+
+  const grid = document.getElementById('slots-grid');
+  slots.forEach(slot => {
+    const card = document.createElement('div');
+    card.className = 'slot-card';
+    card.id = `card-${slot.id}`;
+    card.innerHTML = `
+      <div class="slot-header">
+        <div class="slot-num">Slot #${String(slot.id).padStart(2,'0')}</div>
+        <div class="slot-dot"></div>
+      </div>
+      <div class="stopwatch" id="sw-${slot.id}">00:00:00</div>
+      <div class="accrued" id="accrued-${slot.id}">Accrued: <span>₱0</span></div>
+      <button class="btn-occupy" id="btn-occupy-${slot.id}">Occupy Slot</button>
+      <button class="btn-add" id="btn-add-${slot.id}" disabled>+ Add 30 Mins</button>
+    `;
+    grid.appendChild(card);
+
+    document.getElementById(`btn-occupy-${slot.id}`).addEventListener('click', () => {
+      slot.isOccupied ? vacateSlot(slot) : occupySlot(slot);
+    });
+    document.getElementById(`btn-add-${slot.id}`).addEventListener('click', () => addThirtyMins(slot));
+  });
+
+  updateDashboard();
+</script>
+</body>
+</html>

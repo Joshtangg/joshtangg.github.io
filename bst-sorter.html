@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BST Sorter: Falling Numbers</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #10141e;
+    --panel: #0d1018;
+    --border: #1e2840;
+    --text: #e2e8f8;
+    --muted: #4a5578;
+    --accent: #4fc3f7;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --purple: #c084fc;
+    --pixel: 'Press Start 2P', monospace;
+    --mono: 'DM Mono', monospace;
+  }
+
+  body {
+    font-family: var(--pixel);
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 1.5rem 1rem 2rem;
+    background-image:
+      radial-gradient(ellipse at 50% 0%, rgba(79,195,247,0.06) 0%, transparent 60%),
+      linear-gradient(180deg, #0a0c10 0%, #0c0f1a 100%);
+  }
+
+  /* ---- Header ---- */
+  .game-title {
+    font-size: 14px;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    text-shadow: 0 0 20px rgba(79,195,247,0.5);
+    margin-bottom: .35rem;
+    text-align: center;
+  }
+
+  .game-sub {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 1.25rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+  }
+
+  /* ---- Status Bar ---- */
+  .status-bar {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    width: 100%;
+    max-width: 660px;
+    margin-bottom: 8px;
+  }
+
+  .stat-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .stat-label {
+    font-size: 7px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+
+  .stat-value {
+    font-size: 14px;
+    color: var(--text);
+    letter-spacing: 0.04em;
+  }
+
+  #statScore { color: var(--green); }
+  #statStrikes { color: var(--red); }
+
+  .stat-box.target-box {
+    flex: 1;
+    justify-content: center;
+    border-color: #2a3a5a;
+  }
+
+  .target-label {
+    font-size: 7px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    margin-bottom: 4px;
+  }
+
+  .target-value {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    transition: color .3s;
+  }
+
+  .target-left  { color: var(--accent); }
+  .target-right { color: var(--purple); }
+
+  .timer-bar-wrap {
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+
+  .timer-bar {
+    height: 100%;
+    background: var(--amber);
+    border-radius: 2px;
+    transition: width .1s linear;
+  }
+
+  /* ---- Canvas Wrapper ---- */
+  .canvas-wrap {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 0 40px rgba(79,195,247,0.08), 0 0 0 1px rgba(79,195,247,0.04);
+  }
+
+  canvas {
+    display: block;
+    cursor: none;
+  }
+
+  /* ---- Feedback Toast ---- */
+  #toast {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    font-size: 16px;
+    letter-spacing: 0.06em;
+    padding: 10px 20px;
+    border-radius: 6px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity .15s, transform .15s;
+    z-index: 10;
+    white-space: nowrap;
+  }
+
+  #toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  #toast.correct { background: rgba(74,222,128,0.15); color: var(--green); border: 1px solid rgba(74,222,128,0.3); }
+  #toast.wrong   { background: rgba(248,113,113,0.15); color: var(--red);   border: 1px solid rgba(248,113,113,0.3); }
+
+  /* ---- Game Over Modal ---- */
+  .modal-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(10,12,16,0.92);
+    backdrop-filter: blur(4px);
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 1.25rem;
+    text-align: center;
+    padding: 2rem;
+  }
+
+  .modal-overlay.show { display: flex; }
+
+  .modal-title {
+    font-size: 22px;
+    color: var(--red);
+    text-shadow: 0 0 20px rgba(248,113,113,0.5);
+    letter-spacing: 0.05em;
+    animation: blink 1s step-end infinite;
+  }
+
+  .modal-score {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 2;
+  }
+
+  .modal-score span { color: var(--green); }
+
+  .btn-restart {
+    font-family: var(--pixel);
+    font-size: 10px;
+    padding: 12px 24px;
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.08em;
+    transition: background .15s, color .15s;
+    margin-top: .5rem;
+  }
+
+  .btn-restart:hover {
+    background: var(--accent);
+    color: var(--bg);
+  }
+
+  /* ---- Controls hint ---- */
+  .controls-hint {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 8px;
+    letter-spacing: 0.06em;
+    text-align: center;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="game-title">BST SORTER</h1>
+<p class="game-sub">Falling Numbers — Binary Search Tree Edition</p>
+
+<div class="status-bar">
+  <div class="stat-box">
+    <div class="stat-label">Score</div>
+    <div class="stat-value" id="statScore">0</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-label">Strikes</div>
+    <div class="stat-value" id="statStrikes">0 / 3</div>
+  </div>
+  <div class="stat-box target-box">
+    <div class="target-label">Current Target — catch numbers for the:</div>
+    <div class="target-value target-left" id="statTarget">LEFT subtree  (values &lt; 50)</div>
+    <div class="timer-bar-wrap">
+      <div class="timer-bar" id="timerBar" style="width:100%"></div>
+    </div>
+  </div>
+</div>
+
+<div class="canvas-wrap" id="canvasWrap">
+  <canvas id="gameCanvas" width="660" height="420"></canvas>
+  <div id="toast"></div>
+  <div class="modal-overlay" id="modal">
+    <div class="modal-title">GAME OVER</div>
+    <div class="modal-score">
+      Final Score: <span id="modalScore">0</span><br>
+      Numbers Caught: <span id="modalCaught">0</span>
+    </div>
+    <button class="btn-restart" id="btnRestart">[ RESTART GAME ]</button>
+  </div>
+</div>
+
+<div class="controls-hint">← → Arrow keys or Mouse to move bucket</div>
+
+<script>
+class BSTNode {
+  constructor(value) {
+    this.value = value;
+    this.left  = null;
+    this.right = null;
+    this.x = 0;
+    this.y = 0;
+  }
+}
+
+class BinarySearchTree {
+  constructor() { this.root = null; }
+
+  insert(value) {
+    const node = new BSTNode(value);
+    if (!this.root) { this.root = node; return; }
+    let curr = this.root;
+    while (true) {
+      if (value < curr.value) {
+        if (!curr.left)  { curr.left  = node; return; }
+        curr = curr.left;
+      } else {
+        if (!curr.right) { curr.right = node; return; }
+        curr = curr.right;
+      }
+    }
+  }
+
+  clear() { this.root = null; }
+
+  assignCoords(canvasW) {
+    if (!this.root) return;
+    const ROOT_Y  = 68;
+    const LEVEL_H = 52;
+    const queue = [{ node: this.root, x: canvasW / 2, y: ROOT_Y, spread: canvasW / 4 }];
+    while (queue.length) {
+      const { node, x, y, spread } = queue.shift();
+      node.x = x; node.y = y;
+      if (node.left)  queue.push({ node: node.left,  x: x - spread, y: y + LEVEL_H, spread: spread / 2 });
+      if (node.right) queue.push({ node: node.right, x: x + spread, y: y + LEVEL_H, spread: spread / 2 });
+    }
+  }
+}
+
+const canvas  = document.getElementById('gameCanvas');
+const ctx     = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const ROOT_VAL = 50;
+const ROOT_X   = W / 2;
+const ROOT_Y   = 68;
+
+const tree = new BinarySearchTree();
+tree.insert(ROOT_VAL);
+
+let score          = 0;
+let strikes        = 0;
+let totalCaught    = 0;
+let gameOver       = false;
+let rafId          = null;
+
+let targetSide     = 'left';
+const CONDITION_MS = 10000;
+let conditionTimer = CONDITION_MS;
+let lastTimestamp  = null;
+
+const BUCKET_W = 70, BUCKET_H = 18;
+let bucketX = W / 2 - BUCKET_W / 2;
+const BUCKET_Y = H - 34;
+let keyLeft = false, keyRight = false;
+const BUCKET_SPEED = 5;
+
+let fallers = [];
+let spawnTimer = 0;
+const SPAWN_INTERVAL = 1800;
+
+let treeFlashAlpha = 0;
+
+function spawnFaller() {
+  let val;
+  do { val = Math.floor(Math.random() * 99) + 1; } while (val === ROOT_VAL);
+  const x = 30 + Math.random() * (W - 60);
+  fallers.push({ val, x, y: -18, speed: 0.9 + Math.random() * 0.8 });
+}
+
+function drawNode(x, y, val, color, glowColor, r = 22) {
+  ctx.save();
+  ctx.shadowBlur = 14;
+  ctx.shadowColor = glowColor || color;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = `bold ${val >= 100 ? '9' : '11'}px "DM Mono", monospace`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(val), x, y);
+}
+
+function drawTreeEdges(node) {
+  if (!node) return;
+  if (node.left) {
+    ctx.save();
+    ctx.globalAlpha = 0.35 + treeFlashAlpha * 0.65;
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(node.x, node.y);
+    ctx.lineTo(node.left.x, node.left.y);
+    ctx.stroke();
+    ctx.restore();
+    drawTreeEdges(node.left);
+  }
+  if (node.right) {
+    ctx.save();
+    ctx.globalAlpha = 0.35 + treeFlashAlpha * 0.65;
+    ctx.strokeStyle = '#c084fc';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(node.x, node.y);
+    ctx.lineTo(node.right.x, node.right.y);
+    ctx.stroke();
+    ctx.restore();
+    drawTreeEdges(node.right);
+  }
+}
+
+function drawTreeNodes(node) {
+  if (!node) return;
+  if (node.value === ROOT_VAL) {
+    drawNode(node.x, node.y, node.value, '#1a3a5c', '#4fc3f7', 24);
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, 24, 0, Math.PI * 2);
+    ctx.strokeStyle = '#4fc3f7';
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = '#4fc3f7';
+    ctx.stroke();
+    ctx.restore();
+  } else if (node.value < ROOT_VAL) {
+    drawNode(node.x, node.y, node.value, '#193a4a', '#4fc3f7');
+  } else {
+    drawNode(node.x, node.y, node.value, '#2d1e4a', '#c084fc');
+  }
+  drawTreeNodes(node.left);
+  drawTreeNodes(node.right);
+}
+
+function drawBucket() {
+  const bx = bucketX, by = BUCKET_Y;
+  const w = BUCKET_W, h = BUCKET_H;
+  const col = targetSide === 'left' ? '#4fc3f7' : '#c084fc';
+
+  ctx.save();
+  ctx.shadowBlur = 12;
+  ctx.shadowColor = col;
+
+  ctx.fillStyle = '#111827';
+  ctx.beginPath();
+  ctx.roundRect(bx, by, w, h, 5);
+  ctx.fill();
+
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.roundRect(bx, by, w, h, 5);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = col;
+  ctx.font = '7px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('CATCH', bx + w / 2, by + h / 2);
+}
+
+function drawFallers() {
+  fallers.forEach(f => {
+    const col = f.val < ROOT_VAL ? '#4fc3f7' : '#c084fc';
+    ctx.save();
+    ctx.shadowBlur = 10;
+    ctx.shadowColor = col;
+    ctx.beginPath();
+    ctx.arc(f.x, f.y, 16, 0, Math.PI * 2);
+    ctx.fillStyle = col + '22';
+    ctx.fill();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = '#fff';
+    ctx.font = `bold ${f.val >= 100 ? '9' : '11'}px "DM Mono"`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(f.val), f.x, f.y);
+  });
+}
+
+function drawDivider() {
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.strokeStyle = '#ffffff';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([6, 8]);
+  ctx.beginPath();
+  ctx.moveTo(W / 2, ROOT_Y + 28);
+  ctx.lineTo(W / 2, H - 50);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(79,195,247,0.25)';
+  ctx.font = '7px "Press Start 2P"';
+  ctx.textAlign = 'center';
+  ctx.fillText('LEFT < 50', W / 4, H - 16);
+  ctx.fillStyle = 'rgba(192,132,252,0.25)';
+  ctx.fillText('RIGHT > 50', (W * 3) / 4, H - 16);
+}
+
+function drawBackground() {
+  ctx.fillStyle = '#08090f';
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.save();
+  ctx.globalAlpha = 0.035;
+  ctx.strokeStyle = '#4fc3f7';
+  ctx.lineWidth = 1;
+  const gs = 40;
+  for (let x = 0; x < W; x += gs) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+  }
+  for (let y = 0; y < H; y += gs) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function checkCollisions() {
+  fallers = fallers.filter(f => {
+    const hitX = f.x > bucketX - 16 && f.x < bucketX + BUCKET_W + 16;
+    const hitY = f.y + 16 >= BUCKET_Y && f.y - 16 <= BUCKET_Y + BUCKET_H;
+
+    if (hitX && hitY) {
+      handleCatch(f.val);
+      return false;
+    }
+    if (f.y > H + 20) return false;
+    return true;
+  });
+}
+
+function handleCatch(val) {
+  tree.insert(val);
+  totalCaught++;
+
+  const isCorrect =
+    (targetSide === 'left'  && val < ROOT_VAL) ||
+    (targetSide === 'right' && val > ROOT_VAL);
+
+  if (isCorrect) {
+    score += 10;
+    treeFlashAlpha = 1;
+    showToast('+10  CORRECT!', 'correct');
+  } else {
+    strikes++;
+    showToast('WRONG SUBTREE  -1 STRIKE', 'wrong');
+    shakeCanvas();
+  }
+
+  updateHUD();
+  if (strikes >= 3) triggerGameOver();
+}
+
+function updateHUD() {
+  document.getElementById('statScore').textContent   = score;
+  document.getElementById('statStrikes').textContent = `${strikes} / 3`;
+}
+
+function updateConditionHUD() {
+  const el  = document.getElementById('statTarget');
+  const bar = document.getElementById('timerBar');
+  if (targetSide === 'left') {
+    el.className = 'target-value target-left';
+    el.textContent = 'LEFT subtree  (values < 50)';
+  } else {
+    el.className = 'target-value target-right';
+    el.textContent = 'RIGHT subtree  (values > 50)';
+  }
+  const pct = (conditionTimer / CONDITION_MS) * 100;
+  bar.style.width = pct + '%';
+  bar.style.background = pct > 40 ? '#fbbf24' : '#f87171';
+}
+
+let toastTimer = null;
+function showToast(msg, type) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'show ' + type;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.className = ''; }, 1200);
+}
+
+let shakeFrames = 0;
+function shakeCanvas() { shakeFrames = 10; }
+
+function triggerGameOver() {
+  gameOver = true;
+  cancelAnimationFrame(rafId);
+  document.getElementById('modalScore').textContent  = score;
+  document.getElementById('modalCaught').textContent = totalCaught;
+  document.getElementById('modal').classList.add('show');
+}
+
+function restartGame() {
+  tree.clear();
+  tree.insert(ROOT_VAL);
+  score = 0; strikes = 0; totalCaught = 0;
+  gameOver = false;
+  fallers = [];
+  spawnTimer = 0;
+  conditionTimer = CONDITION_MS;
+  targetSide = 'left';
+  treeFlashAlpha = 0;
+  lastTimestamp = null;
+  bucketX = W / 2 - BUCKET_W / 2;
+  updateHUD();
+  updateConditionHUD();
+  document.getElementById('modal').classList.remove('show');
+  rafId = requestAnimationFrame(loop);
+}
+
+function loop(timestamp) {
+  if (!lastTimestamp) lastTimestamp = timestamp;
+  const dt = timestamp - lastTimestamp;
+  lastTimestamp = timestamp;
+
+  conditionTimer -= dt;
+  if (conditionTimer <= 0) {
+    targetSide = targetSide === 'left' ? 'right' : 'left';
+    conditionTimer = CONDITION_MS;
+  }
+  updateConditionHUD();
+
+  spawnTimer += dt;
+  if (spawnTimer >= SPAWN_INTERVAL) {
+    spawnFaller();
+    spawnTimer = 0;
+  }
+
+  fallers.forEach(f => { f.y += f.speed; });
+
+  if (keyLeft)  bucketX = Math.max(0, bucketX - BUCKET_SPEED);
+  if (keyRight) bucketX = Math.min(W - BUCKET_W, bucketX + BUCKET_SPEED);
+
+  checkCollisions();
+
+  if (treeFlashAlpha > 0) treeFlashAlpha = Math.max(0, treeFlashAlpha - 0.025);
+
+  let sx = 0, sy = 0;
+  if (shakeFrames > 0) {
+    sx = (Math.random() - 0.5) * 6;
+    sy = (Math.random() - 0.5) * 6;
+    shakeFrames--;
+  }
+
+  tree.assignCoords(W);
+
+  ctx.save();
+  ctx.translate(sx, sy);
+  drawBackground();
+  drawDivider();
+  drawTreeEdges(tree.root);
+  drawTreeNodes(tree.root);
+  drawFallers();
+  drawBucket();
+  ctx.restore();
+
+  rafId = requestAnimationFrame(loop);
+}
+
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'ArrowLeft')  { keyLeft  = true; e.preventDefault(); }
+  if (e.key === 'ArrowRight') { keyRight = true; e.preventDefault(); }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowLeft')  keyLeft  = false;
+  if (e.key === 'ArrowRight') keyRight = false;
+});
+
+canvas.addEventListener('mousemove', e => {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = W / rect.width;
+  const mx = (e.clientX - rect.left) * scaleX;
+  bucketX = Math.max(0, Math.min(W - BUCKET_W, mx - BUCKET_W / 2));
+});
+
+document.getElementById('btnRestart').addEventListener('click', restartGame);
+
+updateHUD();
+updateConditionHUD();
+rafId = requestAnimationFrame(loop);
+</script>
+</body>
+</html>
