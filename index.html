@@ -358,18 +358,18 @@ footer{position:relative;z-index:1;background:var(--ink);padding:2rem 4rem;displ
       </div>
     </div>
     <div>
-      <form class="contact-form reveal reveal-delay-1" onsubmit="handleSubmit(event)">
+      <form class="contact-form reveal reveal-delay-1" onsubmit="handleSubmit(event)" action="https://formspree.io/f/xrevedql" method="POST">
         <div class="form-field">
           <label for="name">Your Name</label>
-          <input type="text" id="name" placeholder="Jane Smith" required>
+          <input type="text" id="name" name="name" placeholder="Jane Smith" required>
         </div>
         <div class="form-field">
           <label for="email">Email Address</label>
-          <input type="email" id="email" placeholder="jane@example.com" required>
+          <input type="email" id="email" name="email" placeholder="jane@example.com" required>
         </div>
         <div class="form-field">
           <label for="message">Message</label>
-          <textarea id="message" placeholder="What's on your mind?" required></textarea>
+          <textarea id="message" name="message" placeholder="What's on your mind?" required></textarea>
         </div>
         <button type="submit" class="form-submit">Send Message →</button>
       </form>
@@ -395,13 +395,29 @@ document.querySelectorAll('a,button,.project-item,.skill-block,.contact-link,.bt
 });
 const obs=new IntersectionObserver(entries=>{entries.forEach(e=>{if(e.isIntersecting)e.target.classList.add('visible')})},{threshold:0.1});
 document.querySelectorAll('.reveal').forEach(el=>obs.observe(el));
-function handleSubmit(e){
+async function handleSubmit(e){
   e.preventDefault();
   const btn=e.target.querySelector('.form-submit');
-  btn.textContent='Sent! ✓';
-  btn.style.background='#1a4a3c';
+  const original=btn.textContent;
+  btn.textContent='Sending...';
   btn.disabled=true;
-  setTimeout(()=>{btn.textContent='Send Message →';btn.style.background='';btn.disabled=false;e.target.reset()},3000);
+  try{
+    const res=await fetch(e.target.action,{method:'POST',body:new FormData(e.target),headers:{Accept:'application/json'}});
+    if(res.ok){
+      btn.textContent='Sent! ✓';
+      btn.style.background='#1a4a3c';
+      e.target.reset();
+      setTimeout(()=>{btn.textContent=original;btn.style.background='';btn.disabled=false},3000);
+    } else {
+      btn.textContent='Failed — try again';
+      btn.style.background='#7a1a1a';
+      btn.disabled=false;
+    }
+  } catch(err){
+    btn.textContent='Network error';
+    btn.style.background='#7a1a1a';
+    btn.disabled=false;
+  }
 }
 const sections=document.querySelectorAll('section[id]');
 const navLinks=document.querySelectorAll('.nav-links a');
